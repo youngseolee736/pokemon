@@ -1,0 +1,14 @@
+{
+  "name": "pokemon-face-match",
+  "version": "1.0.0",
+  "description": "Upload a selfie and find the Pokémon that best match your face.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "multer": "^2.0.2"
+  }
+}
