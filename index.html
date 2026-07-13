@@ -3,56 +3,92 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Pokémon Generator</title>
+    <title>Pokémon Face Match</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <main class="app-shell">
-      <section class="hero-panel">
-        <p class="eyebrow">Pokémon Generator</p>
-        <h1>Pokémon Generator</h1>
-        <p class="subtitle">
-          Discover a fresh Pokémon combination every time.
-        </p>
-        <button id="generateBtn" class="generate-btn">Generate Pokémon</button>
+    <main class="page-shell">
+      <section class="intro-card">
+        <header class="hero-header">
+          <p class="eyebrow">Poké Vibe Finder</p>
+          <h1>Which Pokémon matches your vibe?</h1>
+          <p class="subtitle">
+            Take or upload a selfie to find your top five Pokémon matches.
+          </p>
+        </header>
+
+        <div class="photo-booth">
+          <div class="preview-stage">
+            <div id="cameraPanel" class="camera-panel">
+              <video id="liveVideo" autoplay playsinline muted></video>
+              <div class="camera-controls">
+                <button id="capturePhotoBtn" class="capture-btn" type="button" disabled>Capture Photo</button>
+                <button id="closeCameraBtn" class="capture-btn secondary" type="button" disabled>Close Camera</button>
+              </div>
+            </div>
+
+            <div class="preview-frame">
+              <img id="previewImage" class="preview-image" alt="Selected selfie preview" />
+              <div id="previewPlaceholder" class="preview-placeholder">
+                <div class="placeholder-ball" aria-hidden="true"></div>
+                <p class="placeholder-copy">Snap a selfie and find your Pokémon squad.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="action-row">
+            <button id="takePhotoBtn" class="action-label camera-button" type="button">Take a photo</button>
+            <label class="action-label upload-button" for="imageInput">Upload a photo instead</label>
+            <button id="changePhotoBtn" class="text-button" type="button" hidden>Choose another photo</button>
+          </div>
+
+          <div class="info-strip" aria-label="How it works">
+            <div class="info-step">
+              <span class="step-number">1</span>
+              <span>Snap a selfie</span>
+            </div>
+            <div class="info-step">
+              <span class="step-number">2</span>
+              <span>Reveal your matches</span>
+            </div>
+            <div class="info-step">
+              <span class="step-number">3</span>
+              <span>Save your favorites</span>
+            </div>
+          </div>
+
+          <form id="uploadForm" class="upload-form">
+            <input id="imageInput" type="file" accept="image/*" />
+            <button class="submit-btn" type="submit">Find My Pokémon</button>
+          </form>
+
+          <div id="loadingShell" class="loading-shell" hidden aria-live="polite">
+            <div class="pokeball-spinner" aria-hidden="true"></div>
+            <div class="loading-copy">
+              <strong id="loadingHeadline">Scanning your Poké-vibe...</strong>
+              <span id="loadingSubtext">Comparing your energy...</span>
+            </div>
+          </div>
+
+          <p id="previewText" class="preview-text">Good lighting works best!</p>
+          <p id="statusMessage" class="status-message">Please upload a photo to begin.</p>
+        </div>
       </section>
 
-      <section class="card-panel">
-        <article id="pokemonCard" class="pokemon-card">
-          <div class="card-top-row">
-            <span id="rarityBadge" class="rarity-badge">⭐</span>
-            <span id="regionTag" class="region-tag">Kanto</span>
-          </div>
+      <section id="resultsCard" class="results-card is-hidden">
+        <div class="results-header">
+          <h2>Top Pokémon Matches</h2>
+          <button id="tryAgainBtn" class="ghost-btn" type="button">Try Again</button>
+        </div>
+        <div id="resultsGrid" class="results-grid"></div>
 
-          <div class="portrait-wrap">
-            <div id="pokemonGlyph" class="pokemon-glyph">⚡</div>
+        <div id="favoritesPanel" class="favorites-panel is-hidden">
+          <div class="favorites-header">
+            <h3>Saved Favorites</h3>
+            <span id="favoritesCount" class="favorites-count">0</span>
           </div>
-
-          <h2 id="pokemonName" class="pokemon-name">Pikachu</h2>
-          <p id="pokemonType" class="pokemon-type">Electric Type</p>
-          <p id="pokemonDescription" class="pokemon-description">
-            A Pokémon with quick reflexes and bright energy.
-          </p>
-
-          <div class="stats-grid">
-            <div class="stat-box">
-              <span class="stat-label">HP</span>
-              <strong id="statHp">72</strong>
-            </div>
-            <div class="stat-box">
-              <span class="stat-label">Attack</span>
-              <strong id="statAttack">68</strong>
-            </div>
-            <div class="stat-box">
-              <span class="stat-label">Defense</span>
-              <strong id="statDefense">55</strong>
-            </div>
-            <div class="stat-box">
-              <span class="stat-label">Speed</span>
-              <strong id="statSpeed">88</strong>
-            </div>
-          </div>
-        </article>
+          <div id="favoritesList" class="favorites-list"></div>
+        </div>
       </section>
     </main>
 
