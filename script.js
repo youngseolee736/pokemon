@@ -46,11 +46,63 @@ const loadingMessages = [
   }
 ];
 
+const demoResults = [
+  {
+    name: 'Pikachu',
+    type: 'Electric',
+    vibe: 'Playful',
+    artwork: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/25.png',
+    similarity: 93,
+    reason: 'Bright eyes and an energetic expression match Pikachu’s lively look.'
+  },
+  {
+    name: 'Charmander',
+    type: 'Fire',
+    vibe: 'Bold',
+    artwork: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/4.png',
+    similarity: 86,
+    reason: 'A strong expression and confident energy fit Charmander’s bold personality.'
+  },
+  {
+    name: 'Bulbasaur',
+    type: 'Grass, Poison',
+    vibe: 'Calm',
+    artwork: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/1.png',
+    similarity: 78,
+    reason: 'Soft features and a calm mood suggest a gentle Bulbasaur-like vibe.'
+  },
+  {
+    name: 'Charizard',
+    type: 'Fire, Flying',
+    vibe: 'Powerful',
+    artwork: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/6.png',
+    similarity: 73,
+    reason: 'A confident expression lines up with Charizard’s powerful presence.'
+  },
+  {
+    name: 'Pidgey',
+    type: 'Normal, Flying',
+    vibe: 'Light',
+    artwork: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/16.png',
+    similarity: 71,
+    reason: 'An approachable expression fits Pidgey’s light and friendly energy.'
+  }
+];
+
 let mediaStream = null;
 let currentResults = [];
 let favoriteMap = loadFavoriteMap();
 let loadingTimer = null;
 let loadingMessageIndex = 0;
+const pokemonStatsCache = new Map();
+const radarStats = [
+  { key: 'hp', label: 'HP' },
+  { key: 'attack', label: 'ATK' },
+  { key: 'defense', label: 'DEF' },
+  { key: 'special-attack', label: 'SP.A' },
+  { key: 'special-defense', label: 'SP.D' },
+  { key: 'speed', label: 'SPD' }
+];
 
 function loadFavoriteMap() {
   try {
@@ -172,6 +224,7 @@ function resetAnalysisState() {
   favoritesPanel.classList.add('is-hidden');
   resetPreview();
   statusMessage.textContent = 'Please upload a photo to begin.';
+  window.dispatchEvent(new CustomEvent('pokemonmatchesreset'));
 }
 
 function stopCamera() {
@@ -243,6 +296,100 @@ function capturePhoto() {
   }, 'image/png');
 }
 
+function pokemonApiSlug(name) {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+async function getPokemonStats(name) {
+  const slug = pokemonApiSlug(name);
+
+  if (!pokemonStatsCache.has(slug)) {
+    const request = fetch(`https://pokeapi.co/api/v2/pokemon/${slug}`)
+      .then((response) => {
+        if (!response.ok) throw new Error(`PokéAPI returned ${response.status}`);
+        return response.json();
+      })
+      .then((data) => Object.fromEntries(data.stats.map((entry) => [entry.stat.name, entry.base_stat])))
+      .catch((error) => {
+        pokemonStatsCache.delete(slug);
+        throw error;
+      });
+
+    pokemonStatsCache.set(slug, request);
+  }
+
+  return pokemonStatsCache.get(slug);
+}
+
+function radarPoint(index, radius, centerX = 105, centerY = 86) {
+  const angle = (-90 + index * 60) * (Math.PI / 180);
+  return {
+    x: centerX + Math.cos(angle) * radius,
+    y: centerY + Math.sin(angle) * radius
+  };
+}
+
+function radarPoints(radius) {
+  return radarStats
+    .map((_stat, index) => {
+      const point = radarPoint(index, radius);
+      return `${point.x.toFixed(1)},${point.y.toFixed(1)}`;
+    })
+    .join(' ');
+}
+
+function renderStatsRadar(container, stats, pokemonName) {
+  const maxStat = 180;
+  const values = radarStats.map((stat) => stats[stat.key] || 0);
+  const dataPoints = values
+    .map((value, index) => {
+      const point = radarPoint(index, 58 * Math.min(value / maxStat, 1));
+      return `${point.x.toFixed(1)},${point.y.toFixed(1)}`;
+    })
+    .join(' ');
+  const grid = [0.25, 0.5, 0.75, 1]
+    .map((level) => `<polygon class="radar-grid" points="${radarPoints(58 * level)}" />`)
+    .join('');
+  const axes = radarStats
+    .map((_stat, index) => {
+      const point = radarPoint(index, 58);
+      return `<line class="radar-axis" x1="105" y1="86" x2="${point.x.toFixed(1)}" y2="${point.y.toFixed(1)}" />`;
+    })
+    .join('');
+  const labels = radarStats
+    .map((stat, index) => {
+      const point = radarPoint(index, 76);
+      return `<text class="radar-label" x="${point.x.toFixed(1)}" y="${point.y.toFixed(1)}"><tspan x="${point.x.toFixed(1)}">${stat.label}</tspan><tspan class="radar-value" x="${point.x.toFixed(1)}" dy="10">${values[index]}</tspan></text>`;
+    })
+    .join('');
+  const total = values.reduce((sum, value) => sum + value, 0);
+
+  container.innerHTML = `
+    <div class="stats-heading"><h3>Base Stats</h3><span>Total ${total}</span></div>
+    <svg class="stat-radar" viewBox="0 0 210 175" role="img" aria-label="${pokemonName} base stats radar chart">
+      <title>${pokemonName} base stats</title>
+      ${grid}${axes}
+      <polygon class="radar-data" points="${dataPoints}" />
+      ${dataPoints.split(' ').map((point) => {
+        const [x, y] = point.split(',');
+        return `<circle class="radar-point" cx="${x}" cy="${y}" r="2.5" />`;
+      }).join('')}
+      ${labels}
+    </svg>
+  `;
+}
+
+async function loadCardStats(card, pokemon) {
+  const container = card.querySelector('.result-stats');
+
+  try {
+    const stats = await getPokemonStats(pokemon.name);
+    if (card.isConnected) renderStatsRadar(container, stats, pokemon.name);
+  } catch (error) {
+    if (card.isConnected) container.innerHTML = '<p class="stats-error">Stats unavailable.</p>';
+  }
+}
+
 function createResultCard(pokemon, isFeatured = false) {
   const card = document.createElement('article');
   card.className = `result-card${isFeatured ? ' featured-card' : ''}`;
@@ -259,15 +406,22 @@ function createResultCard(pokemon, isFeatured = false) {
       <img src="${pokemon.artwork}" alt="${pokemon.name}" />
     </div>
     <div class="result-body">
-      <h2 class="result-name">${pokemon.name}</h2>
-      <p class="result-type">Type: ${pokemon.type}</p>
-      <p class="result-score">Match: ${pokemon.similarity}%</p>
-      <p class="result-reason">${pokemon.reason}</p>
+      <div class="result-copy">
+        <h2 class="result-name">${pokemon.name}</h2>
+        <p class="result-type">Type: ${pokemon.type}</p>
+        <p class="result-score">Match: ${pokemon.similarity}%</p>
+        <p class="result-reason">${pokemon.reason}</p>
+      </div>
+      <div class="result-stats" aria-live="polite">
+        <div class="stats-loading"><span class="mini-spinner" aria-hidden="true"></span>Loading stats...</div>
+      </div>
     </div>
     <div class="result-footer">
       <button class="share-btn" type="button">Share Result</button>
     </div>
   `;
+
+  loadCardStats(card, pokemon);
 
   const favoriteButton = card.querySelector('.favorite-btn');
   favoriteButton.addEventListener('click', () => {
@@ -317,6 +471,7 @@ function createResultCard(pokemon, isFeatured = false) {
 }
 
 function renderResults(results) {
+  const isNewMatchSet = results !== currentResults;
   currentResults = results;
   resultsGrid.innerHTML = '';
   resultsCard.classList.remove('is-hidden');
@@ -334,6 +489,9 @@ function renderResults(results) {
 
   resultsGrid.appendChild(miniGrid);
   renderFavorites();
+  if (isNewMatchSet) {
+    window.dispatchEvent(new CustomEvent('pokemonmatchesready', { detail: { results } }));
+  }
 }
 
 takePhotoBtn.addEventListener('click', async () => {
@@ -382,6 +540,16 @@ form.addEventListener('submit', async (event) => {
   statusMessage.textContent = 'Scanning your Poké-vibe...';
 
   try {
+    const isGitHubPages = window.location.hostname.endsWith('.github.io');
+
+    if (isGitHubPages) {
+      await new Promise((resolve) => window.setTimeout(resolve, 650));
+      hideLoadingState();
+      renderResults(demoResults);
+      statusMessage.textContent = 'Your demo Pokémon matches are ready.';
+      return;
+    }
+
     const formData = new FormData();
     formData.append('image', file);
 
@@ -390,9 +558,21 @@ form.addEventListener('submit', async (event) => {
       body: formData
     });
 
+    if (response.status === 404 || response.status === 405) {
+      hideLoadingState();
+      renderResults(demoResults);
+      statusMessage.textContent = 'Your demo Pokémon matches are ready.';
+      return;
+    }
+
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      throw new Error('The analysis server returned an invalid response.');
+    }
+
     const payload = await response.json();
 
-    if (!response.ok || !payload.results) {
+    if (!response.ok || !Array.isArray(payload.results) || !payload.results.length) {
       throw new Error(payload.error || 'Analysis failed.');
     }
 
@@ -401,9 +581,9 @@ form.addEventListener('submit', async (event) => {
     statusMessage.textContent = 'Your top five Pokémon matches are ready.';
   } catch (error) {
     hideLoadingState();
-    statusMessage.textContent = error.message;
+    console.error('Error:', error);
+    statusMessage.textContent = `Error: ${error.message} Please try again.`;
   }
 });
 
 resetAnalysisState();
-

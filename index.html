@@ -90,8 +90,97 @@
           <div id="favoritesList" class="favorites-list"></div>
         </div>
       </section>
+
+      <section id="matchGame" class="game-card is-hidden" aria-labelledby="gameTitle">
+        <div class="game-header">
+          <div>
+            <p class="eyebrow">Match Mini Game</p>
+            <h2 id="gameTitle">Type Battle</h2>
+            <p>Choose your matched Pokémon, pick a move, and use type advantages to win.</p>
+          </div>
+          <span class="wins-badge">Wins <strong id="battleWins">0</strong></span>
+        </div>
+
+        <div id="gameRoster" class="game-roster" aria-label="Choose your matched Pokémon"></div>
+
+        <div id="battleArena" class="battle-arena" aria-label="Pokémon battle arena">
+          <article class="fighter player-fighter">
+            <div class="fighter-info">
+              <h3 id="playerName">Your Pokémon</h3>
+              <div id="playerTypes" class="type-list"></div>
+              <div class="hp-label"><span>HP</span><span id="playerHpText">-- / --</span></div>
+              <div class="hp-track"><div id="playerHpBar" class="hp-fill"></div></div>
+            </div>
+            <img id="playerSprite" alt="" />
+          </article>
+
+          <div class="versus-badge" aria-hidden="true">VS</div>
+
+          <article class="fighter enemy-fighter">
+            <div class="fighter-info">
+              <h3 id="enemyName">Wild opponent</h3>
+              <div id="enemyTypes" class="type-list"></div>
+              <div class="hp-label"><span>HP</span><span id="enemyHpText">-- / --</span></div>
+              <div class="hp-track"><div id="enemyHpBar" class="hp-fill enemy-hp"></div></div>
+            </div>
+            <img id="enemySprite" alt="" />
+          </article>
+        </div>
+
+        <div class="battle-panel">
+          <p id="battleMessage" class="battle-message" role="status" aria-live="polite">Choose your Pokémon, then find an opponent.</p>
+          <div id="moveButtons" class="move-buttons" hidden></div>
+          <button id="startBattleBtn" class="browse-btn" type="button">Find Opponent</button>
+        </div>
+      </section>
+
+      <section class="pokedex-card" aria-labelledby="pokedexTitle">
+        <div class="pokedex-header">
+          <div>
+            <p class="eyebrow">Live Pokédex</p>
+            <h2 id="pokedexTitle">Browse Pokémon</h2>
+            <p>Search by name, filter by type, and open a card for live PokéAPI details.</p>
+          </div>
+          <span class="api-badge">Powered by PokéAPI</span>
+        </div>
+
+        <form id="pokedexSearchForm" class="pokedex-controls" role="search">
+          <label class="control-field" for="pokemonSearch">
+            <span>Pokémon name</span>
+            <input id="pokemonSearch" type="search" placeholder="Try pikachu or char..." autocomplete="off" />
+          </label>
+          <label class="control-field" for="typeFilter">
+            <span>Type</span>
+            <select id="typeFilter">
+              <option value="">All types</option>
+            </select>
+          </label>
+          <button class="browse-btn" type="submit">Search</button>
+          <button id="clearFiltersBtn" class="ghost-btn" type="button">Clear</button>
+        </form>
+
+        <div id="pokedexLoading" class="pokedex-loading" hidden aria-live="polite">
+          <div class="pokeball-spinner" aria-hidden="true"></div>
+          <span>Loading Pokémon from PokéAPI...</span>
+        </div>
+        <div id="pokedexMessage" class="pokedex-message" role="status" aria-live="polite"></div>
+        <div id="pokedexGrid" class="pokedex-grid" aria-busy="false"></div>
+
+        <nav class="pagination" aria-label="Pokédex pages">
+          <button id="previousPageBtn" class="ghost-btn" type="button">← Previous</button>
+          <span id="pageIndicator">Page 1 of 1</span>
+          <button id="nextPageBtn" class="ghost-btn" type="button">Next →</button>
+        </nav>
+      </section>
     </main>
 
+    <dialog id="pokemonDialog" class="pokemon-dialog" aria-labelledby="dialogPokemonName">
+      <button id="closePokemonDialog" class="dialog-close" type="button" aria-label="Close details">×</button>
+      <div id="pokemonDialogContent"></div>
+    </dialog>
+
     <script src="script.js"></script>
+    <script src="game.js"></script>
+    <script src="pokedex.js"></script>
   </body>
 </html>
