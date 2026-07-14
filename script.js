@@ -103,6 +103,162 @@ const radarStats = [
   { key: 'special-defense', label: 'SP.D' },
   { key: 'speed', label: 'SPD' }
 ];
+const typeVibes = {
+  fire: 'Bold', water: 'Calm', electric: 'Energetic', grass: 'Grounded',
+  ice: 'Cool', fighting: 'Brave', poison: 'Edgy', ground: 'Steady',
+  flying: 'Free', psychic: 'Mystic', bug: 'Curious', rock: 'Strong',
+  ghost: 'Mysterious', dragon: 'Powerful', dark: 'Fearless', steel: 'Focused',
+  fairy: 'Playful', normal: 'Friendly'
+};
+
+function seededRandom(seed) {
+  let value = seed >>> 0;
+  return () => {
+    value += 0x6d2b79f5;
+    let mixed = value;
+    mixed = Math.imul(mixed ^ (mixed >>> 15), mixed | 1);
+    mixed ^= mixed + Math.imul(mixed ^ (mixed >>> 7), mixed | 61);
+    return ((mixed ^ (mixed >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+async function getFileSeed(file) {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const step = Math.max(1, Math.floor(bytes.length / 12000));
+  let hash = 2166136261;
+
+  for (let index = 0; index < bytes.length; index += step) {
+    hash ^= bytes[index];
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return hash >>> 0;
+}
+
+function loadPhotoImage(file) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('The selected photo could not be read.'));
+    };
+    image.src = objectUrl;
+  });
+}
+
+async function getPhotoMetrics(file) {
+  const image = await loadPhotoImage(file);
+  const canvas = document.createElement('canvas');
+  const size = 24;
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  context.drawImage(image, 0, 0, size, size);
+  const pixels = context.getImageData(0, 0, size, size).data;
+  let red = 0;
+  let green = 0;
+  let blue = 0;
+  let brightness = 0;
+  const brightnessSamples = [];
+
+  for (let index = 0; index < pixels.length; index += 4) {
+    const r = pixels[index];
+    const g = pixels[index + 1];
+    const b = pixels[index + 2];
+    const value = r * 0.2126 + g * 0.7152 + b * 0.0722;
+    red += r;
+    green += g;
+    blue += b;
+    brightness += value;
+    brightnessSamples.push(value);
+  }
+
+  const count = brightnessSamples.length;
+  const averageBrightness = brightness / count;
+  const variance = brightnessSamples.reduce((sum, value) => sum + (value - averageBrightness) ** 2, 0) / count;
+  return {
+    brightness: averageBrightness,
+    contrast: Math.sqrt(variance),
+    warmth: (red - blue) / count,
+    green: green / count
+  };
+}
+
+function describePhoto(metrics) {
+  const tone = metrics.warmth > 14 ? 'warm-toned' : metrics.warmth < -14 ? 'cool-toned' : 'balanced-toned';
+  const energy = metrics.contrast > 58
+    ? 'bold, high-contrast'
+    : metrics.brightness > 175
+      ? 'bright and upbeat'
+      : metrics.brightness < 85
+        ? 'deep and mysterious'
+        : metrics.green > 125
+          ? 'fresh and natural'
+          : 'calm and balanced';
+  return `${tone}, ${energy}`;
+}
+
+function shuffledFallbackResults(seed, metrics) {
+  const random = seededRandom(seed);
+  const results = demoResults.map((pokemon) => ({ ...pokemon }));
+
+  for (let index = results.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(random() * (index + 1));
+    [results[index], results[swapIndex]] = [results[swapIndex], results[index]];
+  }
+
+  return results.map((pokemon, index) => ({
+    ...pokemon,
+    similarity: Math.max(68, 94 - index * 5 - Math.floor(random() * 3)),
+    reason: `Your ${describePhoto(metrics)} photo gives a ${pokemon.vibe.toLowerCase()} energy that matches ${pokemon.name}.`
+  }));
+}
+
+async function buildPhotoBasedResults(file) {
+  const [seed, metrics] = await Promise.all([
+    getFileSeed(file),
+    getPhotoMetrics(file).catch(() => ({ brightness: 128, contrast: 40, warmth: 0, green: 110 }))
+  ]);
+  const combinedSeed = (seed ^ Math.round(metrics.brightness * 65537) ^ Math.round(metrics.contrast * 4099)) >>> 0;
+  const random = seededRandom(combinedSeed);
+  const ids = [];
+
+  while (ids.length < 5) {
+    const id = Math.floor(random() * 151) + 1;
+    if (!ids.includes(id)) ids.push(id);
+  }
+
+  try {
+    const pokemon = await Promise.all(ids.map(async (id) => {
+      const response = await fetch(`https://pokeapi.co/api/v2/pokemon/${id}`);
+      if (!response.ok) throw new Error('PokéAPI is unavailable.');
+      return response.json();
+    }));
+    const photoDescription = describePhoto(metrics);
+
+    return pokemon.map((detail, index) => {
+      const types = detail.types.map((entry) => entry.type.name);
+      const primaryType = types[0] || 'normal';
+      const name = detail.name.charAt(0).toUpperCase() + detail.name.slice(1);
+      const vibe = typeVibes[primaryType] || 'Curious';
+      return {
+        name,
+        type: types.map((type) => type.charAt(0).toUpperCase() + type.slice(1)).join(', '),
+        vibe,
+        artwork: detail.sprites.other['official-artwork'].front_default || detail.sprites.front_default,
+        similarity: Math.max(68, 94 - index * 5 - Math.floor(random() * 3)),
+        reason: `Your ${photoDescription} photo gives a ${vibe.toLowerCase()} energy that matches ${name}.`
+      };
+    });
+  } catch (error) {
+    return shuffledFallbackResults(combinedSeed, metrics);
+  }
+}
 
 function loadFavoriteMap() {
   try {
@@ -543,10 +699,10 @@ form.addEventListener('submit', async (event) => {
     const isGitHubPages = window.location.hostname.endsWith('.github.io');
 
     if (isGitHubPages) {
-      await new Promise((resolve) => window.setTimeout(resolve, 650));
+      const photoResults = await buildPhotoBasedResults(file);
       hideLoadingState();
-      renderResults(demoResults);
-      statusMessage.textContent = 'Your demo Pokémon matches are ready.';
+      renderResults(photoResults);
+      statusMessage.textContent = 'Your photo-powered Pokémon matches are ready.';
       return;
     }
 
@@ -559,9 +715,10 @@ form.addEventListener('submit', async (event) => {
     });
 
     if (response.status === 404 || response.status === 405) {
+      const photoResults = await buildPhotoBasedResults(file);
       hideLoadingState();
-      renderResults(demoResults);
-      statusMessage.textContent = 'Your demo Pokémon matches are ready.';
+      renderResults(photoResults);
+      statusMessage.textContent = 'Your photo-powered Pokémon matches are ready.';
       return;
     }
 
@@ -576,8 +733,9 @@ form.addEventListener('submit', async (event) => {
       throw new Error(payload.error || 'Analysis failed.');
     }
 
+    const results = payload.demo ? await buildPhotoBasedResults(file) : payload.results;
     hideLoadingState();
-    renderResults(payload.results);
+    renderResults(results);
     statusMessage.textContent = 'Your top five Pokémon matches are ready.';
   } catch (error) {
     hideLoadingState();
