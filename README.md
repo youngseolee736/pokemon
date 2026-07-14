@@ -1,15 +1,19 @@
 # **Pokémon Face Match**
 
-What your app does
+## What your app does ## 
 Pokémon Face Match is a web app that lets users upload a selfie and discover which Pokémon best match their facial vibe. The app displays a set of Pokémon results along with matching descriptions, and users can also save favorites for later.
 
-Which API you used
+Key Features: 
+1. Recognize the face and fetch the data from the Poke API. It also brings their ability, strength, speed and more. (Match face with pokemon)
+2. All of the individual Pokemon's ability is shown through the graph.
+3. Based on the strength, created the game feature. 
+
+## Which API you used ## 
 This project uses the PokéAPI to fetch Pokémon data such as names, types, and artwork.
 
 PokéAPI: https://pokeapi.co/
-This project did not use ChatGPT or any OpenAI API.
 
-Link to live site
+## Link to live site ##
 You can view the live version here:
 Live Demo: https://youngseolee736.github.io/pokemon/
 ## Screenshot ## 
