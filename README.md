@@ -1,4 +1,5 @@
-Pokémon Face Match
+**Pokémon Face Match**
+
 What your app does
 Pokémon Face Match is a web app that lets users upload a selfie and discover which Pokémon best match their facial vibe. The app displays a set of Pokémon results along with matching descriptions, and users can also save favorites for later.
 
