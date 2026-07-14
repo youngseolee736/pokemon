@@ -491,6 +491,16 @@ form.addEventListener('submit', async (event) => {
   statusMessage.textContent = 'Scanning your Poké-vibe...';
 
   try {
+    const isGitHubPages = window.location.hostname.endsWith('.github.io');
+
+    if (isGitHubPages) {
+      await new Promise((resolve) => window.setTimeout(resolve, 650));
+      hideLoadingState();
+      renderResults(demoResults);
+      statusMessage.textContent = 'Your demo Pokémon matches are ready.';
+      return;
+    }
+
     const formData = new FormData();
     formData.append('image', file);
 

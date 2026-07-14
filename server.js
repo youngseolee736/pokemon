@@ -57,24 +57,39 @@ const fallbackPokemon = [
 ];
 
 async function getPokemonCandidates() {
-  const response = await fetch('https://pokeapi.co/api/v2/pokemon?limit=12');
-  const json = await response.json();
-  const names = json.results.map((item) => item.name);
+  try {
+    const response = await fetch('https://pokeapi.co/api/v2/pokemon?limit=12');
+    if (!response.ok) throw new Error('Failed to fetch Pokemon list');
 
-  const detailCalls = names.map(async (name) => {
-    const detailResponse = await fetch(`https://pokeapi.co/api/v2/pokemon/${name}`);
-    const detail = await detailResponse.json();
+    const json = await response.json();
+    const names = json.results.map((item) => item.name);
 
-    return {
-      name: name,
-      type: detail.types.map((item) => item.type.name).join(', '),
-      artwork: detail.sprites.other['official-artwork'].front_default,
-      similarity: 0,
-      reason: ''
-    };
-  });
+    const detailCalls = names.map(async (name) => {
+      try {
+        const detailResponse = await fetch(`https://pokeapi.co/api/v2/pokemon/${name}`);
+        if (!detailResponse.ok) throw new Error(`Failed to fetch ${name}`);
 
-  return Promise.all(detailCalls);
+        const detail = await detailResponse.json();
+
+        return {
+          name: name,
+          type: detail.types.map((item) => item.type.name).join(', '),
+          artwork: detail.sprites.other['official-artwork'].front_default,
+          similarity: 0,
+          reason: ''
+        };
+      } catch (err) {
+        console.error(`Error fetching ${name}:`, err);
+        return null;
+      }
+    });
+
+    const results = await Promise.all(detailCalls);
+    return results.filter(r => r !== null);
+  } catch (error) {
+    console.error('Error in getPokemonCandidates:', error);
+    throw error;
+  }
 }
 
 function buildFallbackResults(candidates) {
@@ -97,10 +112,17 @@ app.post('/api/analyze', upload.single('image'), async (req, res) => {
   }
 
   try {
-    const candidates = await getPokemonCandidates();
-
     if (!process.env.OPENAI_API_KEY) {
-      return res.json({ results: buildFallbackResults(candidates) });
+      return res.json({ results: fallbackPokemon, demo: true });
+    }
+
+    let candidates;
+
+    try {
+      candidates = await getPokemonCandidates();
+    } catch (error) {
+      console.warn('PokéAPI is unavailable; using the built-in candidate list.');
+      candidates = fallbackPokemon;
     }
 
     const imageBase64 = req.file.buffer.toString('base64');
