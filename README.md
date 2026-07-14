@@ -11,5 +11,3 @@ A small web app that accepts a selfie, sends the image to a backend route, and r
 ## How to run locally
 
 ## Notes
-- The OpenAI API key must be kept in the server environment and should never be committed to the repository.
-- If the key is not configured, the app falls back to a demo result set so the UI can still be tested.
